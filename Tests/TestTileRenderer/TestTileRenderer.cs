@@ -12,7 +12,7 @@ public class TestTileRenderer
     [TestMethod]
     public void TestRendering()
     {
-        var dataFile = new DataFile("MapData/andorra-10032022.bin");
+        var dataFile = new DataFile("MapData/andorra.bin");
 
         var pixelBb = new TileRenderer.BoundingBox
         {

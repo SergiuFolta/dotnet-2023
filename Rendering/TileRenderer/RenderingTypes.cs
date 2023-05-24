@@ -108,36 +108,36 @@ public struct GeoFeature : BaseShape
     public GeoFeature(ReadOnlySpan<Coordinate> c, MapFeatureData feature)
     {
         IsPolygon = feature.Type == GeometryType.Polygon;
-        var naturalKey = feature.Properties.FirstOrDefault(x => x.Key == "natural").Value;
+        var naturalKey = feature.Properties.FirstOrDefault(x => x.Key == 9).Value;
         Type = GeoFeatureType.Unknown;
-        if (naturalKey != null)
+        if (naturalKey != 0)
         {
-            if (naturalKey == "fell" ||
-                naturalKey == "grassland" ||
-                naturalKey == "heath" ||
-                naturalKey == "moor" ||
-                naturalKey == "scrub" ||
-                naturalKey == "wetland")
+            if (naturalKey == 16 ||
+                naturalKey == 17 ||
+                naturalKey == 18 ||
+                naturalKey == 19 ||
+                naturalKey == 20 ||
+                naturalKey == 21)
             {
                 Type = GeoFeatureType.Plain;
             }
-            else if (naturalKey == "wood" ||
-                     naturalKey == "tree_row")
+            else if (naturalKey == 22 ||
+                     naturalKey == 23)
             {
                 Type = GeoFeatureType.Forest;
             }
-            else if (naturalKey == "bare_rock" ||
-                     naturalKey == "rock" ||
-                     naturalKey == "scree")
+            else if (naturalKey == 24 ||
+                     naturalKey == 25 ||
+                     naturalKey == 26)
             {
                 Type = GeoFeatureType.Mountains;
             }
-            else if (naturalKey == "beach" ||
-                     naturalKey == "sand")
+            else if (naturalKey == 27 ||
+                     naturalKey == 28)
             {
                 Type = GeoFeatureType.Desert;
             }
-            else if (naturalKey == "water")
+            else if (naturalKey == 29)
             {
                 Type = GeoFeatureType.Water;
             }
@@ -202,7 +202,7 @@ public struct PopulatedPlace : BaseShape
         for (var i = 0; i < c.Length; i++)
             ScreenCoordinates[i] = new PointF((float)MercatorProjection.lonToX(c[i].Longitude),
                 (float)MercatorProjection.latToY(c[i].Latitude));
-        var name = feature.Properties.FirstOrDefault(x => x.Key == "name").Value;
+        var name = feature.Properties.FirstOrDefault(x => x.Key == 23).Value;
 
         if (feature.Label.IsEmpty)
         {
@@ -211,7 +211,7 @@ public struct PopulatedPlace : BaseShape
         }
         else
         {
-            Name = string.IsNullOrWhiteSpace(name) ? feature.Label.ToString() : name;
+            Name = "Null";
             ShouldRender = true;
         }
     }
@@ -224,10 +224,10 @@ public struct PopulatedPlace : BaseShape
             return false;
         }
         foreach (var entry in feature.Properties)
-            if (entry.Key.StartsWith("place"))
+            if (entry.Key == 20 || entry.Key == 21 || entry.Key == 22)
             {
-                if (entry.Value.StartsWith("city") || entry.Value.StartsWith("town") ||
-                    entry.Value.StartsWith("locality") || entry.Value.StartsWith("hamlet"))
+                if (entry.Value == 12 || entry.Value == 13 ||
+                    entry.Value == 14 || entry.Value == 15)
                 {
                     return true;
                 }
@@ -264,11 +264,11 @@ public struct Border : BaseShape
         var foundLevel = false;
         foreach (var entry in feature.Properties)
         {
-            if (entry.Key.StartsWith("boundary") && entry.Value.StartsWith("administrative"))
+            if (entry.Key == 10 && entry.Value == 9)
             {
                 foundBoundary = true;
             }
-            if (entry.Key.StartsWith("admin_level") && entry.Value == "2")
+            if (entry.Key == 19 && entry.Value == 11)
             {
                 foundLevel = true;
             }

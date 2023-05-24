@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO.MemoryMappedFiles;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -24,7 +25,7 @@ public readonly ref struct MapFeatureData
     public GeometryType Type { get; init; }
     public ReadOnlySpan<char> Label { get; init; }
     public ReadOnlySpan<Coordinate> Coordinates { get; init; }
-    public Dictionary<string, string> Properties { get; init; }
+    public Dictionary<int, int> Properties { get; init; }
 }
 
 /// <summary>
@@ -150,6 +151,10 @@ public unsafe class DataFile : IDisposable
             return;
         }
 
+        long lastFeatureID = 0;
+
+        var fileReaderFeatures = new StreamReader("MapData/andorra_features.bin");
+
         var tiles = TiligSystem.GetTilesForBoundingBox(b.MinLat, b.MinLon, b.MaxLat, b.MaxLon);
         for (var i = 0; i < tiles.Length; ++i)
         {
@@ -158,6 +163,7 @@ public unsafe class DataFile : IDisposable
             {
                 continue;
             }
+
             for (var j = 0; j < header.Tile.Value.FeaturesCount; ++j)
             {
                 var feature = GetFeature(j, header.TileOffset);
@@ -174,18 +180,32 @@ public unsafe class DataFile : IDisposable
                 }
 
                 var label = ReadOnlySpan<char>.Empty;
-                if (feature->LabelOffset >= 0)
+                /*if (feature->LabelOffset >= 0)
                 {
                     GetString(header.Tile.Value.StringsOffsetInBytes, header.Tile.Value.CharactersOffsetInBytes, feature->LabelOffset, out label);
-                }
+                }*/
 
                 if (isFeatureInBBox)
                 {
-                    var properties = new Dictionary<string, string>(feature->PropertyCount);
-                    for (var p = 0; p < feature->PropertyCount; ++p)
+                    var properties = new Dictionary<int, int>(feature->PropertyCount);
+
+                    if (lastFeatureID == 0)
                     {
-                        GetProperty(header.Tile.Value.StringsOffsetInBytes, header.Tile.Value.CharactersOffsetInBytes, p * 2 + feature->PropertiesOffset, out var key, out var value);
-                        properties.Add(key.ToString(), value.ToString());
+                        lastFeatureID = feature->Id;
+                    }
+                    SeekInFile(ref fileReaderFeatures, feature->Id, lastFeatureID);
+                    lastFeatureID = feature->Id;
+
+                    long propertyCount = Int32.Parse(fileReaderFeatures.ReadLine());
+                    for (long p = 0; p < propertyCount; p++)
+                    {
+                        int key = Int32.Parse(fileReaderFeatures.ReadLine());
+                        int value = Int32.Parse(fileReaderFeatures.ReadLine());
+                        if (key == 0) {// || key == 23) {
+                            continue;
+                        }
+
+                        properties.Add(key, value);
                     }
 
                     if (!action(new MapFeatureData
@@ -200,6 +220,26 @@ public unsafe class DataFile : IDisposable
                         break;
                     }
                 }
+            }
+        }
+        fileReaderFeatures.Close();
+    }
+
+    public void SeekInFile(ref StreamReader file, long featureID, long lastFeatureID)
+    {
+        for (long i = lastFeatureID + 1; i < featureID; i++)
+        {
+            var line = file.ReadLine();
+            if (line == null)
+            {
+                return;
+            }
+            int count = Int32.Parse(line);
+
+            for (int j = 0; j < count; j++)
+            {
+                file.ReadLine();
+                file.ReadLine();
             }
         }
     }

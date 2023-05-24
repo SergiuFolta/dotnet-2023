@@ -73,3 +73,7 @@ sdkconfig*
 # VS Code
 .vscode/
 compile_commands.json
+
+# Extras
+Input/
+Output/

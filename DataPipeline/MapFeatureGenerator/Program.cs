@@ -115,8 +115,8 @@ public static class Program
                 {
                     Id = featureId,
                     Coordinates = (totalCoordinateCount, new List<Coordinate>()),
-                    PropertyKeys = (totalPropertyCount, new List<string>(way.Tags.Count)),
-                    PropertyValues = (totalPropertyCount, new List<string>(way.Tags.Count))
+                    PropertyKeys = (totalPropertyCount, new List<int>(way.Tags.Count)),
+                    PropertyValues = (totalPropertyCount, new List<int>(way.Tags.Count))
                 };
 
                 var geometryType = GeometryType.Polyline;
@@ -128,8 +128,8 @@ public static class Program
                     {
                         labels[^1] = totalPropertyCount * 2 + featureData.PropertyKeys.keys.Count * 2 + 1;
                     }
-                    featureData.PropertyKeys.keys.Add(tag.Key);
-                    featureData.PropertyValues.values.Add(tag.Value);
+                    featureData.PropertyKeys.keys.Add(ConvertKey(tag.Key));
+                    featureData.PropertyValues.values.Add(ConvertValue(tag.Key, tag.Value));
                 }
 
                 foreach (var nodeId in way.NodeIds)
@@ -144,10 +144,10 @@ public static class Program
 
                     foreach (var (key, value) in node.Tags)
                     {
-                        if (!featureData.PropertyKeys.keys.Contains(key))
+                        if (!featureData.PropertyKeys.keys.Contains(ConvertKey(key)))
                         {
-                            featureData.PropertyKeys.keys.Add(key);
-                            featureData.PropertyValues.values.Add(value);
+                            featureData.PropertyKeys.keys.Add(ConvertKey(key));
+                            featureData.PropertyValues.values.Add(ConvertValue(key, value));
                         }
                     }
 
@@ -189,8 +189,8 @@ public static class Program
 
                 var featureId = Interlocked.Increment(ref featureIdCounter);
 
-                var featurePropKeys = new List<string>();
-                var featurePropValues = new List<string>();
+                var featurePropKeys = new List<int>();
+                var featurePropValues = new List<int>();
 
                 labels.Add(-1);
                 for (var i = 0; i < node.Tags.Count; ++i)
@@ -201,8 +201,8 @@ public static class Program
                         labels[^1] = totalPropertyCount * 2 + featurePropKeys.Count * 2 + 1;
                     }
 
-                    featurePropKeys.Add(tag.Key);
-                    featurePropValues.Add(tag.Value);
+                    featurePropKeys.Add(ConvertKey(tag.Key));
+                    featurePropValues.Add(ConvertValue(tag.Key, tag.Value));
                 }
 
                 if (featurePropKeys.Count != featurePropValues.Count)
@@ -284,58 +284,17 @@ public static class Program
                 }
             }
 
-            // Record the current position in the stream
-            currentPosition = fileWriter.BaseStream.Position;
-            // Seek back in the file to the position of the field
-            fileWriter.BaseStream.Position = soPosition;
-            // Write the recorded 'currentPosition'
-            fileWriter.Write(currentPosition); // TileBlockHeader: StringsOffsetInBytes
-            // And seek forward to continue updating the file
-            fileWriter.BaseStream.Position = currentPosition;
+            using var fileWriterFeatures = new StreamWriter(filePath.Replace(".bin", "_features.bin"));
 
-            var stringOffset = 0;
             foreach (var t in featureIds)
             {
                 var featureData = featuresData[t];
+
+                fileWriterFeatures.WriteLine(featureData.PropertyKeys.keys.Count);
                 for (var i = 0; i < featureData.PropertyKeys.keys.Count; ++i)
                 {
-                    ReadOnlySpan<char> k = featureData.PropertyKeys.keys[i];
-                    ReadOnlySpan<char> v = featureData.PropertyValues.values[i];
-
-                    fileWriter.Write(stringOffset); // StringEntry: Offset
-                    fileWriter.Write(k.Length); // StringEntry: Length
-                    stringOffset += k.Length;
-
-                    fileWriter.Write(stringOffset); // StringEntry: Offset
-                    fileWriter.Write(v.Length); // StringEntry: Length
-                    stringOffset += v.Length;
-                }
-            }
-
-            // Record the current position in the stream
-            currentPosition = fileWriter.BaseStream.Position;
-            // Seek back in the file to the position of the field
-            fileWriter.BaseStream.Position = choPosition;
-            // Write the recorded 'currentPosition'
-            fileWriter.Write(currentPosition); // TileBlockHeader: CharactersOffsetInBytes
-            // And seek forward to continue updating the file
-            fileWriter.BaseStream.Position = currentPosition;
-            foreach (var t in featureIds)
-            {
-                var featureData = featuresData[t];
-                for (var i = 0; i < featureData.PropertyKeys.keys.Count; ++i)
-                {
-                    ReadOnlySpan<char> k = featureData.PropertyKeys.keys[i];
-                    foreach (var c in k)
-                    {
-                        fileWriter.Write((short)c);
-                    }
-
-                    ReadOnlySpan<char> v = featureData.PropertyValues.values[i];
-                    foreach (var c in v)
-                    {
-                        fileWriter.Write((short)c);
-                    }
+                    fileWriterFeatures.WriteLine((int)featureData.PropertyKeys.keys[i]);
+                    fileWriterFeatures.WriteLine((int)featureData.PropertyValues.values[i]);
                 }
             }
         }
@@ -388,7 +347,309 @@ public static class Program
 
         public byte GeometryType { get; set; }
         public (int offset, List<Coordinate> coordinates) Coordinates { get; init; }
-        public (int offset, List<string> keys) PropertyKeys { get; init; }
-        public (int offset, List<string> values) PropertyValues { get; init; }
+        public (int offset, List<int> keys) PropertyKeys { get; init; }
+        public (int offset, List<int> values) PropertyValues { get; init; }
+    }
+
+    public static int ConvertKey(string str) {
+
+        if (str == "highway") {
+            return 1;
+        }
+
+        if (str == "highway:2020") {
+            return 2;
+        }
+
+        if (str == "highway:lanes:backward") {
+            return 3;
+        }
+
+        if (str == "highway:lanes:forward") {
+            return 4;
+        }
+
+        if (str == "water") {
+            return 5;
+        }
+
+        if (str == "waterway") {
+            return 6;
+        }
+
+        if (str == "water_point") {
+            return 7;
+        }
+
+        if (str == "railway") {
+            return 8;
+        }
+
+        if (str == "natural") {
+            return 9;
+        }
+
+        if (str == "boundary") {
+            return 10;
+        }
+
+        if (str == "landuse") {
+            return 11;
+        }
+
+        if (str == "building") {
+            return 12;
+        }
+
+        if (str == "building:levels") {
+            return 13;
+        }
+
+        if (str == "building:2020") {
+            return 14;
+        }
+
+        if (str == "building:architecture") {
+            return 15;
+        }
+
+        if (str == "leisure") {
+            return 16;
+        }
+        
+        if (str == "amenity") {
+            return 17;
+        }
+        
+        if (str == "amenity:2020") {
+            return 18;
+        }
+
+        if (str == "admin_level") {
+            return 19;
+        }
+
+        if (str == "place") {
+            return 20;
+        }
+
+        if (str == "placement") {
+            return 21;
+        }
+
+        if (str == "placement:forward") {
+            return 22;
+        }
+
+        if (str == "name") {
+            return 23;
+        }
+
+        return 0;
+    }
+
+    public static int ConvertValue(string key, string str) {
+
+        if (str.StartsWith("motorway")) {
+            return 1;
+        }
+
+        if (str.StartsWith("trunk")) {
+            return 2;
+        }
+
+        if (str.StartsWith("primary")) {
+            return 3;
+        }
+
+        if (str.StartsWith("secondary")) {
+            return 4;
+        }
+
+        if (str.StartsWith("tertiary")) {
+            return 5;
+        }
+
+        if (str.StartsWith("unclassified")) {
+            return 6;
+        }
+
+        if (str.StartsWith("residential") && key == "highway") {
+            return 7;
+        }
+
+        if (str.StartsWith("road")) {
+            return 8;
+        }
+
+        if (str.StartsWith("administrative")) {
+            return 9;
+        }
+
+        if (str.StartsWith("forest") && key.StartsWith("boundary")) {
+            return 10;
+        }
+
+        if (str == "2") {
+            return 11;
+        }
+
+        if (str.StartsWith("city")) {
+            return 12;
+        }
+
+        if (str.StartsWith("town")) {
+            return 13;
+        }
+
+        if (str.StartsWith("locality")) {
+            return 14;
+        }
+
+        if (str.StartsWith("hamlet")) {
+            return 15;
+        }
+
+        if (str == "fell") {
+            return 16;
+        }
+
+        if (str == "grassland") {
+            return 17;
+        }
+
+        if (str == "heath") {
+            return 18;
+        }
+
+        if (str == "moor") {
+            return 19;
+        }
+
+        if (str == "scrub") {
+            return 20;
+        }
+
+        if (str == "wetland") {
+            return 21;
+        }
+
+        if (str == "wood") {
+            return 22;
+        }
+
+        if (str == "tree_row") {
+            return 23;
+        }
+
+        if (str == "bare_rock") {
+            return 24;
+        }
+
+        if (str == "rock") {
+            return 25;
+        }
+
+        if (str == "scree") {
+            return 26;
+        }
+
+        if (str == "beach") {
+            return 27;
+        }
+
+        if (str == "sand") {
+            return 28;
+        }
+
+        if (str == "water") {
+            return 29;
+        }
+ 
+        if (str.StartsWith("forest") && key.StartsWith("landuse")) {
+            return 30;
+        }
+
+        if (str.StartsWith("orchard")) {
+            return 31;
+        }
+
+        if (str.StartsWith("residential") && key.StartsWith("landuse")) {
+            return 32;
+        }
+
+        if (str.StartsWith("cemetery")) {
+            return 33;
+        }
+
+        if (str.StartsWith("industrial")) {
+            return 34;
+        }
+
+        if (str.StartsWith("commercial")) {
+            return 35;
+        }
+
+        if (str.StartsWith("square")) {
+            return 36;
+        }
+
+        if (str.StartsWith("construction")) {
+            return 37;
+        }
+
+        if (str.StartsWith("military")) {
+            return 38;
+        }
+
+        if (str.StartsWith("quarry")) {
+            return 39;
+        }
+
+        if (str.StartsWith("brownfield")) {
+            return 40;
+        }
+
+        if (str.StartsWith("farm")) {
+            return 41;
+        }
+
+        if (str.StartsWith("meadow")) {
+            return 42;
+        }
+
+        if (str.StartsWith("grass")) {
+            return 43;
+        }
+
+        if (str.StartsWith("greenfield")) {
+            return 44;
+        }
+
+        if (str.StartsWith("recreation_ground")) {
+            return 45;
+        }
+
+        if (str.StartsWith("winter_sports")) {
+            return 46;
+        }
+
+        if (str.StartsWith("allotments")) {
+            return 47;
+        }
+
+        if (str.StartsWith("reservoir")) {
+            return 48;
+        }
+
+        if (str.StartsWith("basin")) {
+            return 49;
+        }
+
+        if (key == "name") {
+            return 50;
+        }
+
+        return 0;
     }
 }

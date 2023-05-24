@@ -9,7 +9,7 @@ public class TestClass
     [TestMethod]
     public void TestDataFile()
     {
-        var dataFile = new DataFile("MapData/andorra-10032022.bin");
+        var dataFile = new DataFile("MapData/andorra.bin");
         dataFile.ForeachFeature(
             new BoundingBox(
                 new Coordinate(42.39202286040115, 1.3300323486328125),
